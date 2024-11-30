@@ -460,13 +460,16 @@ void HelloTriangleApp::createGraphicsPipeline()
 	// as opposed to creating a new pipeline representing each state.
 	std::vector<VkDynamicState> dynamicStates
 	{
+		// Viewport and scissor rect can both be dynamic.
+		// It is often recommended to do so. 
+		// These are setup later.
 		VK_DYNAMIC_STATE_VIEWPORT,
 		VK_DYNAMIC_STATE_SCISSOR
 	};
 
 	VkPipelineDynamicStateCreateInfo dynamicState{ };
 	dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-	dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+	dynamicState.dynamicStateCount = static_cast<u32>(dynamicStates.size());
 	dynamicState.pDynamicStates = dynamicStates.data();
 
 	// Structure used to describe vertex data format.
@@ -487,6 +490,36 @@ void HelloTriangleApp::createGraphicsPipeline()
 	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+	// Viewport is the area being drawn to.
+	// They describe the transformation of the image to the framebuffer.
+	VkViewport viewport{ };
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	viewport.width = (float)m_swapchainExtent.width;
+	viewport.height = (float)m_swapchainExtent.height;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	// Scissor rect is used by the rasterizer to clip pixels outside of it.
+	// Essentially defines the area of the viewport that can be drawn to.
+	// If the viewport is bigger than the scissor rect, pixels outside the bounds
+	// will be clipped by the rasterizer.
+	VkRect2D scissor{ };
+	scissor.offset = { 0, 0 };
+	scissor.extent = m_swapchainExtent;
+
+	// Here we descrube the Viewport with the above information.
+	VkPipelineViewportStateCreateInfo viewportState{};
+	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewportState.viewportCount = 1;
+	viewportState.scissorCount = 1;
+
+	// If we were creating non-dynamic viewport and scissor,
+	// they would have to be assigned as below.
+	// This would make them immutable along with the pipeline.
+	// viewportState.pViewports = &viewport;
+	// viewportState.pScissors = &scissor;
 
 	// We can destroy the shader modules after we are done linking them to the piepline.
 	vkDestroyShaderModule(m_logicalDevice, fragShaderModule, nullptr);
