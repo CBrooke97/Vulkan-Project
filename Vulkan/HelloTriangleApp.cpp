@@ -208,7 +208,7 @@ void HelloTriangleApp::pickPhysicalDevice()
 // 
 //bool HelloTriangleApp::isDeviceSuitable(VkPhysicalDevice device)
 //{
-//	// Querues basice properties
+//	// Queries basice properties
 //	// Name, type, supported VK version etc.
 //	VkPhysicalDeviceProperties deviceProperties;
 //	vkGetPhysicalDeviceProperties(device, &deviceProperties);
@@ -509,7 +509,7 @@ void HelloTriangleApp::createGraphicsPipeline()
 	scissor.offset = { 0, 0 };
 	scissor.extent = m_swapchainExtent;
 
-	// Here we descrube the Viewport with the above information.
+	// Here we describe the Viewport with the above information.
 	VkPipelineViewportStateCreateInfo viewportState{};
 	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	viewportState.viewportCount = 1;
@@ -520,6 +520,64 @@ void HelloTriangleApp::createGraphicsPipeline()
 	// This would make them immutable along with the pipeline.
 	// viewportState.pViewports = &viewport;
 	// viewportState.pScissors = &scissor;
+
+	// Setup the structure which describes rasterizer state.
+	// Depth clamp will clamp fragments beyond the near and far planes
+	// rather than discarding them. Can be useful for shadow maps.
+	VkPipelineRasterizationStateCreateInfo rasterizer{};
+	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizer.depthClampEnable = VK_FALSE;
+
+	// This will cull all geometry passed to the rasterizer. We do not want this.
+	rasterizer.rasterizerDiscardEnable = VK_FALSE;
+
+	// Determines how geometry from the vertex shader is converted to fragments.
+	// Modes other than fill require enabling specific GPU features.
+	// VK_POLYGON_MODE_FILL: fill the area of the polygon with fragments
+	// VK_POLYGON_MODE_LINE : polygon edges are drawn as lines
+	// VK_POLYGON_MODE_POINT : polygon vertices are drawn as point
+	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+
+	// Determines the thickness of lines in fragments. 
+	// Max value is hardware dependent, we generally want value of 1.
+	// Value greater then 1 also requires enabling GPU features.
+	rasterizer.lineWidth = 1.0f;
+
+	// Cull mode determines face culling.
+	// frontFace specifies which vertices to consider forward facing,
+	// and their winding order.
+	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+
+	// These values allow the rasterizer to bias depth values.
+	// Can be useful for shadow maps.
+	rasterizer.depthBiasEnable = VK_FALSE;
+	rasterizer.depthBiasConstantFactor = 0.0f; // Optional
+	rasterizer.depthBiasClamp = 0.0f; // Optional
+	rasterizer.depthBiasSlopeFactor = 0.0f; // Optional
+
+	// The below structure describes the multisampling state of the pipeline.
+	// Multisampling is a means of anti-aliasing (MSAA).
+	// Having the hardware do it is more efficient.
+	// Requires enabling of GPU features.
+	VkPipelineMultisampleStateCreateInfo multisampling{};
+	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampling.sampleShadingEnable = VK_FALSE;
+	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampling.minSampleShading = 1.0f; // Optional
+	multisampling.pSampleMask = nullptr; // Optional
+	multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
+	multisampling.alphaToOneEnable = VK_FALSE; // Optional
+
+	VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	colorBlendAttachment.blendEnable = VK_FALSE;
+	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
+	colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
+	colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD; // Optional
+	colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
+	colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
+	colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD; // Optional
 
 	// We can destroy the shader modules after we are done linking them to the piepline.
 	vkDestroyShaderModule(m_logicalDevice, fragShaderModule, nullptr);
