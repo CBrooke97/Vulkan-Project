@@ -32,6 +32,7 @@ void HelloTriangleApp::InitVulkan()
 	createLogicalDevice();
 	createSwapchain();
 	createImageViews();
+	createRenderPass();
 	createGraphicsPipeline();
 }
 
@@ -58,6 +59,8 @@ void HelloTriangleApp::Cleanup()
 	if (enableValidationLayers) {
 		DestroyDebugUtilsMessengerEXT(m_vkInstance, m_debugMessenger, nullptr);
 	}
+
+	vkDestroyPipelineLayout(m_logicalDevice, m_pipelineLayout, nullptr);
 
 	for (auto imageView : m_swapchainImageViews) 
 	{
@@ -421,6 +424,62 @@ void HelloTriangleApp::createImageViews()
 	}
 }
 
+void HelloTriangleApp::createRenderPass()
+{
+	// Attachment descriptions are render targets
+	// This is where we tell Vulkan how many render targets
+	// there are, what they will be and how to sample/handle them.
+	VkAttachmentDescription colorAttachment{ };
+	colorAttachment.format = m_swapchainImageFormat;
+	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+
+	// loadOp and storeOp determine what is done with data
+	// before and after rendering respectively. 
+	// VK_ATTACHMENT_LOAD_OP_LOAD: Preserve the existing contents of the attachment
+	// VK_ATTACHMENT_LOAD_OP_CLEAR: Clear the values to a constant at the start
+	// VK_ATTACHMENT_LOAD_OP_DONT_CARE : Existing contents are undefined; we don’t care about them
+	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+
+	// VK_ATTACHMENT_STORE_OP_STORE: Rendered contents will be stored in memory and can be read later
+	// VK_ATTACHMENT_STORE_OP_DONT_CARE : Contents of the framebuffer will be undefined after the rendering operation
+	// We want to render, so should store the operation.
+	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+	// These are the same as the above, but for stencil data.
+	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+	// VkImage represent Textures and framebuffers. Their layout in memory
+	// can change based on their usage. The below parameters describe the 
+	// VkImage layout before and after the render pass respectively. 
+	// VK_IMAGE_LAYOUT_UNDEFINED - don't care about the layout, can't guarantee data is preserved
+	// VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: Images used as color attachment
+	// VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : Images to be presented in the swap chain
+	// VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL : Images to be used as destination for a memory copy operation
+	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	// Vulkan allows for subpasses within a render pass.
+	// These are just subsequent rendering operations that rely
+	// on a previous one. Good use case is Post Processing effects.
+	// Using these allows Vulkan to try reorder operations for better
+	// optimisation.
+
+	// The attachment parameter specifies which attachment to reference
+	// by its index in the attachment descriptions array.
+	VkAttachmentReference colorAttachmentRef{};
+	colorAttachmentRef.attachment = 0;
+	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	// Describes subpass.
+	VkSubpassDescription subpass{};
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &colorAttachmentRef;
+}
+
 void HelloTriangleApp::createGraphicsPipeline()
 {
 	auto vertShaderCode = readFile("Shaders/CompiledShaders/vert.spv");
@@ -569,15 +628,40 @@ void HelloTriangleApp::createGraphicsPipeline()
 	multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
 	multisampling.alphaToOneEnable = VK_FALSE; // Optional
 
+	// Describes per framebuffer data for blendmodes.
 	VkPipelineColorBlendAttachmentState colorBlendAttachment{};
 	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-	colorBlendAttachment.blendEnable = VK_FALSE;
-	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
-	colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
-	colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD; // Optional
-	colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
-	colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
-	colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD; // Optional
+	colorBlendAttachment.blendEnable = VK_TRUE;
+	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+	colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+	// Describes global data for blendmodes.
+	VkPipelineColorBlendStateCreateInfo colorBlending{};
+	colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlending.logicOpEnable = VK_FALSE;
+	colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
+	colorBlending.attachmentCount = 1;
+	colorBlending.pAttachments = &colorBlendAttachment;
+	colorBlending.blendConstants[0] = 0.0f; // Optional
+	colorBlending.blendConstants[1] = 0.0f; // Optional
+	colorBlending.blendConstants[2] = 0.0f; // Optional
+	colorBlending.blendConstants[3] = 0.0f; // Optional
+
+	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutInfo.setLayoutCount = 0; // Optional
+	pipelineLayoutInfo.pSetLayouts = nullptr; // Optional
+	pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
+	pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+
+	if (vkCreatePipelineLayout(m_logicalDevice, &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) 
+	{
+		throw std::runtime_error("failed to create pipeline layout!");
+	}
 
 	// We can destroy the shader modules after we are done linking them to the piepline.
 	vkDestroyShaderModule(m_logicalDevice, fragShaderModule, nullptr);

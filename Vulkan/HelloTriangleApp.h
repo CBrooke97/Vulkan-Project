@@ -100,6 +100,8 @@ private:
 
 	void createImageViews();
 
+	void createRenderPass();
+
 	void createGraphicsPipeline();
 
 	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
@@ -136,6 +138,8 @@ private:
 	std::vector<VkImageView> m_swapchainImageViews;
 	VkFormat m_swapchainImageFormat;
 	VkExtent2D m_swapchainExtent;
+
+	VkPipelineLayout m_pipelineLayout;
 
 	VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
 	VkDevice m_logicalDevice;
